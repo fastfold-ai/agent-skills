@@ -16,6 +16,8 @@ import os
 import sys
 import time
 
+from load_env import load_dotenv
+
 
 def get_results(base_url: str, api_key: str, job_id: str) -> dict:
     import requests
@@ -31,6 +33,7 @@ def get_results(base_url: str, api_key: str, job_id: str) -> dict:
 
 
 def main():
+    load_dotenv()
     ap = argparse.ArgumentParser(description="Wait for FastFold job completion.")
     ap.add_argument("job_id", help="FastFold job ID (UUID)")
     ap.add_argument("--poll-interval", type=float, default=5.0, help="Seconds between polls (default 5)")

@@ -10,6 +10,22 @@ Skills follow the [Agent Skills](https://agentskills.io/) format.
 npx skills add fastfold-ai/agent-skills
 ```
 
+## Usage
+
+Once installed, the agent uses a skill when the task matches its description and “Use when” triggers.
+
+**Example:**
+
+With `.env` set up (or `FASTFOLD_API_KEY` exported), run scripts without passing the key each time. Your agent can help you set this up—see [Setting your FastFold API key](#setting-your-fastfold-api-key) below. 
+
+
+Just Ask:
+
+```
+Use Boltz-2 in Fastfold with affinity property to the ligand. Fold this protein: PQITLWQRPLVTIKIGGQLKEALLDTGADDTVLEEMSLPGRWKPKMIGGIGGFIKVRQYDQILIEICGHKAIGTVLVGPTPVNIIGRNLLTQIGCTLNF and this ligand: CC1CN(CC(C1)NC(=O)C2=CC=CC=C2N)C(=O)NC(C)(C)C
+```
+
+
 ## Available Skills
 
 Skills in this repo live in the **`skills/`** folder.
@@ -37,41 +53,21 @@ Submits and manages FastFold protein folding jobs via the Jobs API. Covers authe
 
 **Requires:** `FASTFOLD_API_KEY` (or `--api-key`). Agent will ask the user to set the key before continuing if missing.
 
-## Usage
+### Setting your FastFold API key
 
-Once installed, the agent uses a skill when the task matches its description and “Use when” triggers.
+Scripts automatically read `FASTFOLD_API_KEY` from a **`.env`** file in the project (current directory or any parent), so you don't need to export it in the shell.
 
-**Example:**
-- *“Fold this sequence with FastFold”* → fastfold-fold-job
+**Option A — Use a `.env` file (recommended)**
 
-For **fastfold-fold-job**, set your API key before creating jobs or running scripts:
-```bash
-export FASTFOLD_API_KEY="sk-..."
-```
+1. **Copy the template:** `cp skills/fastfold-fold-job/references/.env.example .env`
+2. **Open `.env`** and paste your API key after the `=`:  
+   `FASTFOLD_API_KEY=sk-your-actual-key-here`
+3. **Save.** Scripts will load the key when you run them from this repo or any subdirectory.
 
-## Skill Structure
+Get a key at [FastFold API Keys](https://cloud.fastfold.ai/api-keys). **Do not commit `.env`** (it's in `.gitignore`).
 
-Each skill in `skills/` contains:
-
-| Item | Purpose |
-|------|---------|
-| `SKILL.md` | Required. YAML frontmatter (name, description) + markdown instructions for the agent. |
-| `scripts/` | Optional. Executable helpers (e.g. Python, shell) for automation. |
-| `references/` | Optional. Supporting docs (API refs, schemas, guides). |
-| `assets/` | Optional. Templates, images, or other files used in outputs. |
-
-Example layout:
-```
-skills/
-└── skill-name/
-    ├── SKILL.md
-    ├── references/
-    │   ├── api_ref.md
-    │   └── schema.yaml
-    └── scripts/
-        ├── run_thing.py
-        └── validate.sh
-```
+**Option B — Export in the shell:** `export FASTFOLD_API_KEY="sk-..."`  
+Environment variables take precedence over `.env`.
 
 ## License
 

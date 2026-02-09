@@ -15,6 +15,8 @@ import json
 import os
 import sys
 
+from load_env import load_dotenv
+
 
 def get_results(base_url: str, api_key: str, job_id: str) -> dict:
     import requests
@@ -53,6 +55,7 @@ def summary(data: dict) -> str:
 
 
 def main():
+    load_dotenv()
     ap = argparse.ArgumentParser(description="Fetch FastFold job results.")
     ap.add_argument("job_id", help="FastFold job ID (UUID)")
     ap.add_argument("--api-key", default=os.environ.get("FASTFOLD_API_KEY"), help="API key")

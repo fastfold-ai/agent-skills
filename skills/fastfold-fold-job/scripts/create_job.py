@@ -2,9 +2,20 @@
 """
 Create a FastFold job via POST /v1/jobs. Prints job ID to stdout (and optional JSON).
 
-Usage:
-    create_job.py --name "My Job" --sequence MALW... [--model boltz-2] [--api-key KEY] [--base-url URL]
-    create_job.py --name "Human insulin" --sequence MALWMRLLPLL... --model boltz-2
+Supports two modes:
+
+1. Simple mode (single protein chain):
+   create_job.py --name "My Job" --sequence MALW... [--model boltz-2] [--api-key KEY]
+   create_job.py --name "Human insulin" --sequence MALWMRLLPLL... --model boltz-2
+
+2. Full payload mode (same schema as FastFold Python SDK / OpenAPI JobInput):
+   create_job.py --payload job.json
+   create_job.py --payload -   # read JSON from stdin
+   echo '{"name":"...","sequences":[...],"params":{...}}' | create_job.py --payload -
+
+Full payload allows: multiple sequences (proteinChain, rnaSequence, dnaSequence, ligandSequence),
+params (modelName, relaxPrediction, recyclingSteps, samplingSteps, etc.), constraints (pocket, bond),
+isPublic, and optional "from" (library ID). See references/jobs.yaml for schema and examples.
 
 Requires: requests (pip install requests)
 Environment: FASTFOLD_API_KEY (or --api-key)
@@ -15,22 +26,58 @@ import json
 import os
 import sys
 
+# Load .env from project root so FASTFOLD_API_KEY can be set there
+from load_env import load_dotenv
 
-def create_job(
+
+def create_job_simple(
     base_url: str,
     api_key: str,
     name: str,
     sequence: str,
     model_name: str = "boltz-2",
+    is_public: bool = False,
 ) -> dict:
-    import requests
-    url = f"{base_url.rstrip('/')}/v1/jobs"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    """Build and send a simple single-protein job (JobInput schema)."""
     body = {
         "name": name,
         "sequences": [{"proteinChain": {"sequence": sequence}}],
         "params": {"modelName": model_name},
     }
+    if is_public is not None:
+        body["isPublic"] = is_public
+    return _post_job(base_url, api_key, body)
+
+
+def create_job_from_payload(
+    base_url: str,
+    api_key: str,
+    payload: dict,
+    from_id: str | None = None,
+) -> dict:
+    """Send a full JobInput payload as-is. Optionally set ?from= for library ID."""
+    if not isinstance(payload, dict):
+        sys.exit("Error: Payload must be a JSON object.")
+    for key in ("name", "sequences", "params"):
+        if key not in payload:
+            sys.exit(f"Error: Payload must include '{key}' (JobInput schema).")
+    if not isinstance(payload["sequences"], list) or len(payload["sequences"]) < 1:
+        sys.exit("Error: Payload 'sequences' must be a non-empty array.")
+    return _post_job(base_url, api_key, payload, from_id=from_id)
+
+
+def _post_job(
+    base_url: str,
+    api_key: str,
+    body: dict,
+    from_id: str | None = None,
+) -> dict:
+    import requests
+
+    url = f"{base_url.rstrip('/')}/v1/jobs"
+    if from_id:
+        url = f"{url}?from={from_id}"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     r = requests.post(url, headers=headers, json=body, timeout=30)
     if r.status_code == 401:
         sys.exit("Error: Unauthorized. Check FASTFOLD_API_KEY or --api-key.")
@@ -45,25 +92,66 @@ def create_job(
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Create a FastFold fold job.")
-    ap.add_argument("--name", required=True, help="Job name")
-    ap.add_argument("--sequence", required=True, help="Protein sequence (one letter codes)")
-    ap.add_argument("--model", default="boltz-2", help="Model name (default: boltz-2)")
+    load_dotenv()
+    ap = argparse.ArgumentParser(
+        description="Create a FastFold fold job (simple mode or full JSON payload).",
+        epilog="Full payload: use same JobInput as API/SDK (name, sequences, params; optional constraints, isPublic). See references/jobs.yaml.",
+    )
     ap.add_argument("--api-key", default=os.environ.get("FASTFOLD_API_KEY"), help="API key")
     ap.add_argument("--base-url", default="https://api.fastfold.ai", help="API base URL")
     ap.add_argument("--json", action="store_true", help="Print full response JSON")
+    ap.add_argument("--from", dest="from_id", metavar="UUID", help="Library item ID (query param)")
+
+    # Simple mode
+    ap.add_argument("--name", help="Job name (simple mode)")
+    ap.add_argument("--sequence", help="Protein sequence, one-letter codes (simple mode)")
+    ap.add_argument("--model", default="boltz-2", help="Model name (simple mode; default: boltz-2)")
+    ap.add_argument(
+        "--public",
+        action="store_true",
+        help="Make job public (simple mode)",
+    )
+
+    # Full payload mode
+    ap.add_argument(
+        "--payload",
+        metavar="FILE",
+        help="Path to JSON file or '-' for stdin. Sends body as JobInput (sequences, params, constraints, etc.). Ignores --name/--sequence/--model.",
+    )
+
     args = ap.parse_args()
 
     if not args.api_key:
         sys.exit("Error: Set FASTFOLD_API_KEY or pass --api-key.")
 
-    data = create_job(
-        args.base_url,
-        args.api_key,
-        args.name,
-        args.sequence,
-        args.model,
-    )
+    if args.payload is not None:
+        # Full payload mode
+        if args.payload == "-":
+            try:
+                payload = json.load(sys.stdin)
+            except json.JSONDecodeError as e:
+                sys.exit(f"Error: Invalid JSON from stdin: {e}")
+        else:
+            try:
+                with open(args.payload, "r", encoding="utf-8") as f:
+                    payload = json.load(f)
+            except FileNotFoundError:
+                sys.exit(f"Error: File not found: {args.payload}")
+            except json.JSONDecodeError as e:
+                sys.exit(f"Error: Invalid JSON in {args.payload}: {e}")
+        data = create_job_from_payload(args.base_url, args.api_key, payload, from_id=args.from_id)
+    else:
+        # Simple mode
+        if not args.name or not args.sequence:
+            ap.error("Simple mode requires --name and --sequence (or use --payload for full JSON).")
+        data = create_job_simple(
+            args.base_url,
+            args.api_key,
+            args.name,
+            args.sequence,
+            args.model,
+            is_public=args.public,
+        )
     if args.json:
         print(json.dumps(data, indent=2))
     else:

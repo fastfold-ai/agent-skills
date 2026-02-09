@@ -1,1 +1,4 @@
 .DS_Store
+
+# Local env file with secrets (template: skills/fastfold-fold-job/references/.env.example)
+.env

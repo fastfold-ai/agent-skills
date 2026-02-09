@@ -17,6 +17,8 @@ import argparse
 import os
 import sys
 
+from load_env import load_dotenv
+
 
 def get_results(base_url: str, api_key: str, job_id: str) -> dict:
     import requests
@@ -41,6 +43,7 @@ def download(url: str, path: str) -> None:
 
 
 def main():
+    load_dotenv()
     ap = argparse.ArgumentParser(description="Download CIF file(s) for a completed FastFold job.")
     ap.add_argument("job_id", help="FastFold job ID (UUID)")
     ap.add_argument("--out", help="Output CIF path (single file; use for complex or single-sequence)")

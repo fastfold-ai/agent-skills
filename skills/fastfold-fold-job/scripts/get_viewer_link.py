@@ -16,6 +16,8 @@ import argparse
 import os
 import sys
 
+from load_env import load_dotenv
+
 VIEWER_URL_TEMPLATE = "https://cloud.fastfold.ai/mol/new?from=jobs&job_id={job_id}"
 
 
@@ -33,6 +35,7 @@ def get_results(base_url: str, api_key: str, job_id: str) -> dict:
 
 
 def main():
+    load_dotenv()
     ap = argparse.ArgumentParser(description="Print FastFold viewer URL for a job.")
     ap.add_argument("job_id", help="FastFold job ID (UUID)")
     ap.add_argument("--api-key", default=os.environ.get("FASTFOLD_API_KEY"), help="API key (for --check)")
