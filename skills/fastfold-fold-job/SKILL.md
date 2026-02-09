@@ -27,7 +27,8 @@ Authorization: Bearer <your-api-key>
 
 1. **Copy the template for the user:** Copy `skills/fastfold-fold-job/references/.env.example` to `.env` at the **workspace (project) root**. Create the `.env` file yourself (e.g. read the example file and write its contents to `.env`); do not ask the user to run the copy command.
 2. **Guide the user:** Tell the user that a `.env` file has been created and they need to add their key. Say: *"Open the `.env` file in the project root and paste your FastFold API key after the `=` on the line `FASTFOLD_API_KEY=`. You can create a key at [FastFold API Keys](https://cloud.fastfold.ai/api-keys) if you don’t have one. Save the file when done."*
-3. **Wait:** Do not run create job, wait, fetch, or download until the user confirms they have pasted and saved the key (or provides the key via `--api-key` / env).
+3. **Offer to run the workflow:** Add: *"Let me know when you’ve pasted your key—I can run the create job and the rest of the steps (wait for completion, fetch results, download CIF, viewer link) for you."* Do not give the user a list of commands to run themselves; offer to execute the scripts yourself once the key is set.
+4. **Wait:** Do not run create job, wait, fetch, or download until the user confirms they have pasted and saved the key (or provides the key via `--api-key` / env). After they confirm, run the scripts from the workspace root using the path `skills/fastfold-fold-job/scripts/` (e.g. `python skills/fastfold-fold-job/scripts/create_job.py ...`), not `.agents/...`.
 
 **Required before any authenticated action:** If `FASTFOLD_API_KEY` is not set and no `--api-key` was given, follow the Agent steps above (create `.env` from `references/.env.example`, then ask the user to paste the key and confirm). Only proceed with jobs after the key is set.
 
@@ -46,7 +47,7 @@ Public jobs (`isPublic: true`) can be read without auth via Get Job Results; pri
 2. **Wait for completion** – Poll GET `/v1/jobs/{jobId}/results` until `job.status` is `COMPLETED`, `FAILED`, or `STOPPED`. Use a 5–10 s interval and a timeout (e.g. 900 s).
 3. **Fetch results** – For `COMPLETED` jobs: read `cif_url`, `pdb_url`, metrics (e.g. `meanPLLDT`, `ptm_score`, `iptm_score`), and build viewer link. Complex vs non-complex jobs differ (see below).
 
-**Scripts:** Prefer the bundled scripts so behavior matches the SDK:
+**Scripts:** Prefer the bundled scripts so behavior matches the SDK. From the **workspace root**, run them as e.g. `python skills/fastfold-fold-job/scripts/create_job.py ...` (use `skills/fastfold-fold-job/scripts/`, not `.agents/...`). The agent should run these scripts for the user, not hand them a list of commands.
 
 - **Create job (two modes):**
   - **Simple (single protein):** `python scripts/create_job.py --name "My Job" --sequence MALW... [--model boltz-2] [--public]`
